@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Síndico App</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <style>
+    :root {
+      --sidebar-w: 230px;
+      --sidebar-bg: #1a1f2e;
+      --sidebar-hover: #2d3548;
+      --sidebar-active: #3b4766;
+      --accent: #4f8ef7;
+    }
+    body { background:#f0f2f8; margin:0; font-family:'Segoe UI',system-ui,sans-serif; }
+
+    /* ── Sidebar ─────────────────────────────────────────────── */
+    .sidebar {
+      width: var(--sidebar-w);
+      min-height: 100vh;
+      background: var(--sidebar-bg);
+      position: fixed;
+      top: 0; left: 0;
+      display: flex;
+      flex-direction: column;
+      z-index: 100;
+      transition: width .2s;
+    }
+    .sidebar-brand {
+      padding: 20px 16px 14px;
+      color: #fff;
+      font-weight: 700;
+      font-size: 1.05rem;
+      border-bottom: 1px solid rgba(255,255,255,.08);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+    }
+    .sidebar-brand .brand-icon {
+      width: 34px; height: 34px;
+      background: var(--accent);
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.1rem; flex-shrink: 0;
+    }
+    .nav-section {
+      padding: 16px 10px 4px;
+      font-size: .67rem;
+      color: rgba(255,255,255,.35);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    .sidebar nav a {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: rgba(255,255,255,.65);
+      text-decoration: none;
+      padding: 9px 16px;
+      border-radius: 8px;
+      margin: 2px 8px;
+      font-size: .9rem;
+      transition: background .15s, color .15s;
+    }
+    .sidebar nav a:hover  { background: var(--sidebar-hover); color: #fff; }
+    .sidebar nav a.active { background: var(--sidebar-active); color: #fff; font-weight: 600; }
+    .sidebar nav a i      { font-size: 1rem; width: 20px; text-align: center; }
+    .sidebar-footer {
+      margin-top: auto;
+      padding: 14px 16px;
+      font-size: .72rem;
+      color: rgba(255,255,255,.25);
+      border-top: 1px solid rgba(255,255,255,.06);
+    }
+
+    /* ── Main content ─────────────────────────────────────────── */
+    .main-content {
+      margin-left: var(--sidebar-w);
+      min-height: 100vh;
+      padding: 28px 32px;
+    }
+    .page-title {
+      font-weight: 700;
+      font-size: 1.5rem;
+      color: #1a1f2e;
+    }
+    .card {
+      border: none;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,.06);
+    }
+    .table th {
+      background: #f0f2f8;
+      font-size: .78rem;
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      color: #6c757d;
+    }
+    .badge-status {
+      padding: .3em .7em;
+      border-radius: 20px;
+      font-size: .75rem;
+      font-weight: 600;
+    }
+    .alert-toast {
+      position: fixed;
+      top: 20px; right: 20px;
+      z-index: 9999;
+      min-width: 300px;
+    }
+
+    /* ── Mobile ───────────────────────────────────────────────── */
+    @media(max-width:768px) {
+      .sidebar { width: 60px; }
+      .sidebar-brand .brand-label,
+      .sidebar nav a span,
+      .nav-section,
+      .sidebar-footer { display: none; }
+      .sidebar nav a { justify-content: center; padding: 10px; }
+      .main-content  { margin-left: 60px; padding: 16px; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="sidebar">
+  <a href="/" class="sidebar-brand">
+    <div class="brand-icon"><i class="bi bi-building-fill text-white"></i></div>
+    <span class="brand-label">Síndico App</span>
+  </a>
+
+  <div class="nav-section">Menu</div>
+  <nav>
+    <a href="/demandas"    class="{% if aba=='demandas'    %}active{% endif %}">
+      <i class="bi bi-kanban"></i><span>Demandas</span>
+    </a>
+    <a href="/condominios" class="{% if aba=='condominios' %}active{% endif %}">
+      <i class="bi bi-building"></i><span>Condomínios</span>
+    </a>
+    <a href="/manutencoes" class="{% if aba=='manutencoes' %}active{% endif %}">
+      <i class="bi bi-tools"></i><span>Manutenção</span>
+    </a>
+    <a href="/relatorio"   class="{% if aba=='relatorio'   %}active{% endif %}">
+      <i class="bi bi-file-earmark-bar-graph"></i><span>Relatório</span>
+    </a>
+  </nav>
+
+  <div class="sidebar-footer">Síndico App v1.0</div>
+</div>
+
+<div class="main-content">
+  {% if msg %}
+  <div class="alert alert-success alert-dismissible fade show alert-toast" role="alert">
+    <i class="bi bi-check-circle me-2"></i>{{ msg }}
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+  {% endif %}
+
+  {% block content %}{% endblock %}
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

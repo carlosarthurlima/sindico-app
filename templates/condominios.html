@@ -1,0 +1,170 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h2 class="page-title mb-0"><i class="bi bi-building me-2 text-primary"></i>Condomínios</h2>
+  <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalNovo">
+    <i class="bi bi-plus-lg me-1"></i>Novo Condomínio
+  </button>
+</div>
+
+<div class="row g-3">
+{% for c in condominios %}
+<div class="col-md-6 col-lg-4">
+  <div class="card p-4 h-100">
+    <div class="d-flex justify-content-between align-items-start mb-3">
+      <div>
+        <div class="fw-bold fs-6">{{ c.nome }}</div>
+        {% if c.endereco %}<div class="text-muted small"><i class="bi bi-geo-alt me-1"></i>{{ c.endereco }}</div>{% endif %}
+      </div>
+      <span class="badge {% if c.ativo %}bg-success{% else %}bg-secondary{% endif %}">
+        {% if c.ativo %}Ativo{% else %}Inativo{% endif %}
+      </span>
+    </div>
+
+    <div class="d-flex flex-column gap-1 mb-3">
+      {% if c.responsavel %}
+      <div class="small text-muted"><i class="bi bi-person me-2"></i>{{ c.responsavel }}</div>
+      {% endif %}
+      {% if c.telefone %}
+      <div class="small text-muted"><i class="bi bi-telephone me-2"></i>{{ c.telefone }}</div>
+      {% endif %}
+    </div>
+
+    <div class="d-flex gap-3 mb-3">
+      <div class="text-center">
+        <div class="fw-bold text-primary">{{ c.n_demandas }}</div>
+        <div class="text-muted" style="font-size:.72rem">demandas</div>
+      </div>
+      <div class="text-center">
+        <div class="fw-bold text-warning">{{ c.n_manutencoes }}</div>
+        <div class="text-muted" style="font-size:.72rem">manutenções</div>
+      </div>
+    </div>
+
+    <div class="d-flex gap-2 mt-auto">
+      <a href="/demandas?cond_id={{ c.id }}" class="btn btn-sm btn-outline-primary flex-fill">
+        <i class="bi bi-kanban me-1"></i>Demandas
+      </a>
+      <a href="/manutencoes?cond_id={{ c.id }}" class="btn btn-sm btn-outline-warning flex-fill">
+        <i class="bi bi-tools me-1"></i>Manutenção
+      </a>
+      <button class="btn btn-sm btn-outline-secondary"
+        data-bs-toggle="modal" data-bs-target="#modalEditar"
+        data-id="{{ c.id }}"
+        data-nome="{{ c.nome }}"
+        data-endereco="{{ c.endereco or '' }}"
+        data-responsavel="{{ c.responsavel or '' }}"
+        data-telefone="{{ c.telefone or '' }}"
+        title="Editar">
+        <i class="bi bi-pencil"></i>
+      </button>
+    </div>
+  </div>
+</div>
+{% else %}
+<div class="col-12">
+  <div class="card p-5 text-center text-muted">
+    <i class="bi bi-building display-4 mb-3"></i>
+    <p class="mb-0">Nenhum condomínio cadastrado. Clique em "Novo Condomínio" para começar.</p>
+  </div>
+</div>
+{% endfor %}
+</div>
+
+{# Modal Novo #}
+<div class="modal fade" id="modalNovo" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header border-0">
+        <h5 class="modal-title fw-bold"><i class="bi bi-building me-2 text-primary"></i>Novo Condomínio</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="post" action="/condominios/novo">
+        <div class="modal-body">
+          <div class="row g-3">
+            <div class="col-12">
+              <label class="form-label fw-semibold">Nome <span class="text-danger">*</span></label>
+              <input type="text" name="nome" class="form-control" placeholder="Ex: Residencial Solar das Águas" required>
+            </div>
+            <div class="col-12">
+              <label class="form-label fw-semibold">Endereço</label>
+              <input type="text" name="endereco" class="form-control" placeholder="Rua, número, bairro">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Síndico / Responsável</label>
+              <input type="text" name="responsavel" class="form-control">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Telefone</label>
+              <input type="text" name="telefone" class="form-control" placeholder="(00) 00000-0000">
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer border-0">
+          <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-primary px-4">Cadastrar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{# Modal Editar #}
+<div class="modal fade" id="modalEditar" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header border-0">
+        <h5 class="modal-title fw-bold"><i class="bi bi-pencil me-2 text-warning"></i>Editar Condomínio</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="post" id="formEditar" action="">
+        <div class="modal-body">
+          <div class="row g-3">
+            <div class="col-12">
+              <label class="form-label fw-semibold">Nome</label>
+              <input type="text" name="nome" id="eNome" class="form-control" required>
+            </div>
+            <div class="col-12">
+              <label class="form-label fw-semibold">Endereço</label>
+              <input type="text" name="endereco" id="eEndereco" class="form-control">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Responsável</label>
+              <input type="text" name="responsavel" id="eResp" class="form-control">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Telefone</label>
+              <input type="text" name="telefone" id="eTel" class="form-control">
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer border-0 d-flex justify-content-between">
+          <form method="post" id="formDesativar" action=""
+            onsubmit="return confirm('Desativar este condomínio?')">
+            <button type="submit" class="btn btn-outline-danger btn-sm">Desativar</button>
+          </form>
+          <div class="d-flex gap-2">
+            <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
+            <button form="formEditar" type="submit" class="btn btn-warning px-4">Salvar</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+{% block scripts %}
+<script>
+document.getElementById('modalEditar').addEventListener('show.bs.modal', e => {
+  const b = e.relatedTarget;
+  document.getElementById('formEditar').action    = `/condominios/${b.dataset.id}/editar`;
+  document.getElementById('formDesativar').action = `/condominios/${b.dataset.id}/desativar`;
+  document.getElementById('eNome').value      = b.dataset.nome;
+  document.getElementById('eEndereco').value  = b.dataset.endereco;
+  document.getElementById('eResp').value      = b.dataset.responsavel;
+  document.getElementById('eTel').value       = b.dataset.telefone;
+});
+</script>
+{% endblock %}

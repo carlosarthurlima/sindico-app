@@ -1,0 +1,258 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+  <div>
+    <h2 class="page-title mb-0"><i class="bi bi-tools me-2 text-warning"></i>Manutenção</h2>
+    <div class="d-flex gap-3 mt-1">
+      <span class="small"><span class="badge bg-danger">{{ total_vencido }}</span> vencida(s)</span>
+      <span class="small"><span class="badge bg-warning text-dark">{{ total_alerta }}</span> próxima(s)</span>
+    </div>
+  </div>
+  <div class="d-flex gap-2 flex-wrap">
+    <form method="get" action="/manutencoes" class="d-flex gap-2">
+      <select name="cond_id" class="form-select form-select-sm" style="min-width:190px" onchange="this.form.submit()">
+        <option value="">Todos os condomínios</option>
+        {% for c in condominios %}
+        <option value="{{ c.id }}" {% if c.id == cond_id_filtro %}selected{% endif %}>{{ c.nome }}</option>
+        {% endfor %}
+      </select>
+    </form>
+    <button class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#modalNova">
+      <i class="bi bi-plus-lg me-1"></i>Registrar Manutenção
+    </button>
+  </div>
+</div>
+
+{% if por_cond %}
+{% for grupo in por_cond %}
+{% set cond = grupo.cond %}
+<div class="card mb-3">
+  <div class="card-header bg-white d-flex justify-content-between align-items-center py-3">
+    <h6 class="fw-bold mb-0">
+      <i class="bi bi-building text-primary me-2"></i>{{ cond.nome if cond.nome else '—' }}
+    </h6>
+    <span class="badge bg-light text-dark border">{{ grupo.items|length }} registro(s)</span>
+  </div>
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead>
+          <tr>
+            <th class="ps-3">Tipo</th>
+            <th>Prestador</th>
+            <th>Realizado em</th>
+            <th>Vencimento</th>
+            <th>Valor</th>
+            <th>Status</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+        {% for m in grupo.items %}
+        <tr class="
+          {% if m._status == 'vencido' %}table-danger
+          {% elif m._status == 'alerta' %}table-warning
+          {% endif %}">
+          <td class="ps-3">
+            <strong>{{ m.tipo }}</strong>
+            {% if m.descricao %}<br><small class="text-muted">{{ m.descricao }}</small>{% endif %}
+          </td>
+          <td class="text-muted small">{{ m.prestador or '—' }}</td>
+          <td class="text-muted small">{{ m.data_realizacao or '—' }}</td>
+          <td class="text-nowrap small fw-semibold">{{ m.data_vencimento or '—' }}</td>
+          <td class="text-muted small">
+            {% if m.valor %}R$ {{ "%.2f"|format(m.valor)|replace(".", ",") }}{% else %}—{% endif %}
+          </td>
+          <td>
+            {% if m._status == 'vencido' %}
+              <span class="badge bg-danger">Vencido {{ m._diff|abs }}d</span>
+            {% elif m._status == 'alerta' %}
+              <span class="badge bg-warning text-dark">Vence em {{ m._diff }}d</span>
+            {% elif m._status == 'ok' %}
+              <span class="badge bg-success">OK</span>
+            {% else %}
+              <span class="badge bg-secondary">—</span>
+            {% endif %}
+          </td>
+          <td>
+            <div class="d-flex gap-1">
+              <button class="btn btn-sm btn-outline-secondary"
+                data-bs-toggle="modal" data-bs-target="#modalEditar"
+                data-id="{{ m.id }}"
+                data-cond="{{ m.condominio_id }}"
+                data-tipo="{{ m.tipo }}"
+                data-descricao="{{ m.descricao or '' }}"
+                data-prestador="{{ m.prestador or '' }}"
+                data-realizacao="{{ m.data_realizacao or '' }}"
+                data-vencimento="{{ m.data_vencimento or '' }}"
+                data-valor="{{ m.valor or '' }}"
+                data-obs="{{ m.observacoes or '' }}"
+                title="Editar">
+                <i class="bi bi-pencil"></i>
+              </button>
+              <form method="post" action="/manutencoes/{{ m.id }}/excluir"
+                onsubmit="return confirm('Excluir esta manutenção?')">
+                <input type="hidden" name="condominio_id" value="{{ m.condominio_id }}">
+                <button class="btn btn-sm btn-outline-danger" title="Excluir">
+                  <i class="bi bi-trash"></i>
+                </button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endfor %}
+{% else %}
+<div class="card p-5 text-center text-muted">
+  <i class="bi bi-tools display-4 mb-3"></i>
+  <p class="mb-0">Nenhuma manutenção registrada. Clique em "Registrar Manutenção" para começar.</p>
+</div>
+{% endif %}
+
+{# Modal Nova #}
+<div class="modal fade" id="modalNova" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header border-0">
+        <h5 class="modal-title fw-bold"><i class="bi bi-tools me-2 text-warning"></i>Registrar Manutenção</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="post" action="/manutencoes/nova">
+        <div class="modal-body">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Condomínio <span class="text-danger">*</span></label>
+              <select name="condominio_id" class="form-select" required>
+                <option value="">Selecione...</option>
+                {% for c in condominios %}
+                <option value="{{ c.id }}" {% if c.id == cond_id_filtro %}selected{% endif %}>{{ c.nome }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Tipo de manutenção <span class="text-danger">*</span></label>
+              <input type="text" name="tipo" class="form-control" list="tipos-sugeridos"
+                placeholder="Ex: Dedetização, Extintor, Caixa d'água..." required>
+              <datalist id="tipos-sugeridos">
+                <option value="Dedetização">
+                <option value="Recarga de Extintores">
+                <option value="Limpeza de Caixa d'Água">
+                <option value="Limpeza de Caixa de Gordura">
+                <option value="Manutenção de Elevador">
+                <option value="Manutenção Elétrica">
+                <option value="Manutenção Hidráulica">
+                <option value="Pintura de Fachada">
+                <option value="Desobstrução de Esgoto">
+                <option value="Inspeção de Para-raios">
+                <option value="Manutenção de Portão">
+              </datalist>
+            </div>
+            <div class="col-12">
+              <label class="form-label fw-semibold">Descrição</label>
+              <input type="text" name="descricao" class="form-control" placeholder="Detalhes do serviço">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Prestador</label>
+              <input type="text" name="prestador" class="form-control" placeholder="Nome da empresa ou pessoa">
+            </div>
+            <div class="col-md-3">
+              <label class="form-label fw-semibold">Data de realização</label>
+              <input type="date" name="data_realizacao" class="form-control">
+            </div>
+            <div class="col-md-3">
+              <label class="form-label fw-semibold">Vencimento <span class="text-danger">*</span></label>
+              <input type="date" name="data_vencimento" class="form-control" required>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Valor pago</label>
+              <input type="number" name="valor" class="form-control" placeholder="0,00" step="0.01" min="0">
+            </div>
+            <div class="col-md-8">
+              <label class="form-label fw-semibold">Observações</label>
+              <input type="text" name="observacoes" class="form-control" placeholder="Notas adicionais">
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer border-0">
+          <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-warning px-4"><i class="bi bi-plus-lg me-1"></i>Registrar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{# Modal Editar #}
+<div class="modal fade" id="modalEditar" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header border-0">
+        <h5 class="modal-title fw-bold"><i class="bi bi-pencil me-2 text-warning"></i>Editar Manutenção</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="post" id="formEditarM" action="">
+        <input type="hidden" name="condominio_id" id="mCond">
+        <div class="modal-body">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Tipo</label>
+              <input type="text" name="tipo" id="mTipo" class="form-control" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Prestador</label>
+              <input type="text" name="prestador" id="mPrestador" class="form-control">
+            </div>
+            <div class="col-12">
+              <label class="form-label fw-semibold">Descrição</label>
+              <input type="text" name="descricao" id="mDesc" class="form-control">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Data realização</label>
+              <input type="date" name="data_realizacao" id="mRealizacao" class="form-control">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Vencimento</label>
+              <input type="date" name="data_vencimento" id="mVencimento" class="form-control" required>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Valor</label>
+              <input type="number" name="valor" id="mValor" class="form-control" step="0.01" min="0">
+            </div>
+            <div class="col-12">
+              <label class="form-label fw-semibold">Observações</label>
+              <input type="text" name="observacoes" id="mObs" class="form-control">
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer border-0">
+          <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-warning px-4"><i class="bi bi-save me-1"></i>Salvar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+{% block scripts %}
+<script>
+document.getElementById('modalEditar').addEventListener('show.bs.modal', e => {
+  const b = e.relatedTarget;
+  document.getElementById('formEditarM').action = `/manutencoes/${b.dataset.id}/editar`;
+  document.getElementById('mCond').value       = b.dataset.cond;
+  document.getElementById('mTipo').value       = b.dataset.tipo;
+  document.getElementById('mDesc').value       = b.dataset.descricao;
+  document.getElementById('mPrestador').value  = b.dataset.prestador;
+  document.getElementById('mRealizacao').value = b.dataset.realizacao;
+  document.getElementById('mVencimento').value = b.dataset.vencimento;
+  document.getElementById('mValor').value      = b.dataset.valor;
+  document.getElementById('mObs').value        = b.dataset.obs;
+});
+</script>
+{% endblock %}

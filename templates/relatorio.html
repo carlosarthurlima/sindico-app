@@ -1,0 +1,138 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+  <h2 class="page-title mb-0"><i class="bi bi-file-earmark-bar-graph me-2 text-success"></i>Relatórios</h2>
+  <div class="d-flex gap-2 flex-wrap">
+    <form method="get" action="/relatorio" class="d-flex gap-2">
+      <select name="cond_id" class="form-select form-select-sm" style="min-width:190px" onchange="this.form.submit()">
+        <option value="">Todos os condomínios</option>
+        {% for c in condominios %}
+        <option value="{{ c.id }}" {% if c.id == cond_id_filtro %}selected{% endif %}>{{ c.nome }}</option>
+        {% endfor %}
+      </select>
+    </form>
+    <a href="/relatorio/excel{% if cond_id_filtro %}?cond_id={{ cond_id_filtro }}{% endif %}"
+       class="btn btn-success"><i class="bi bi-file-earmark-excel me-1"></i>Excel</a>
+    <a href="/relatorio/pdf{% if cond_id_filtro %}?cond_id={{ cond_id_filtro }}{% endif %}"
+       class="btn btn-danger"><i class="bi bi-file-earmark-pdf me-1"></i>PDF</a>
+  </div>
+</div>
+
+{# ── Status cards ─────────────────────────────────────────────────────────── #}
+<div class="row g-3 mb-4">
+  {% for sk, sl, sc in status_kanban %}
+  <div class="col-6 col-md-3 col-lg-2-4">
+    <div class="card p-3 text-center">
+      <div class="fs-3 fw-bold text-{{ sc }}">{{ stats.get(sk, 0) }}</div>
+      <div class="text-muted small">{{ sl }}</div>
+    </div>
+  </div>
+  {% endfor %}
+  <div class="col-6 col-md-3 col-lg-2-4">
+    <div class="card p-3 text-center">
+      <div class="fs-3 fw-bold text-secondary">{{ demandas|length }}</div>
+      <div class="text-muted small">Total demandas</div>
+    </div>
+  </div>
+</div>
+
+{# ── Demandas table ────────────────────────────────────────────────────────── #}
+<div class="card mb-4">
+  <div class="card-header bg-white py-3 d-flex align-items-center justify-content-between">
+    <h6 class="mb-0 fw-bold"><i class="bi bi-list-check me-2 text-primary"></i>Demandas</h6>
+    <span class="badge bg-light text-dark border">{{ demandas|length }}</span>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead>
+        <tr>
+          <th class="ps-3">#</th>
+          <th>Condomínio</th>
+          <th>Título</th>
+          <th>Categoria</th>
+          <th>Prestador</th>
+          <th>Valor</th>
+          <th>Prazo</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for d in demandas %}
+      <tr>
+        <td class="ps-3 text-muted small">{{ d.id }}</td>
+        <td class="small">{{ (d.condominios or {}).get('nome', '—') }}</td>
+        <td><strong>{{ d.titulo }}</strong></td>
+        <td><span class="badge bg-light text-dark border">{{ d.categoria.capitalize() }}</span></td>
+        <td class="text-muted small">{{ d.prestador or '—' }}</td>
+        <td class="text-muted small">{% if d.valor %}R$ {{ "%.2f"|format(d.valor)|replace(".", ",") }}{% else %}—{% endif %}</td>
+        <td class="text-muted small {% if d.data_limite and d.data_limite < hoje %}text-danger fw-bold{% endif %}">
+          {{ d.data_limite or '—' }}
+        </td>
+        <td>
+          {% set sc_map = {'novo':'secondary','em_cotacao':'warning','aprovado':'info','em_execucao':'primary','concluido':'success','cancelado':'danger'} %}
+          <span class="badge bg-{{ sc_map.get(d.status, 'secondary') }}">
+            {{ d.status.replace('_',' ').capitalize() }}
+          </span>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="8" class="text-center text-muted py-4">Nenhuma demanda encontrada.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{# ── Manutenções table ─────────────────────────────────────────────────────── #}
+<div class="card">
+  <div class="card-header bg-white py-3 d-flex align-items-center justify-content-between">
+    <h6 class="mb-0 fw-bold"><i class="bi bi-tools me-2 text-warning"></i>Manutenções</h6>
+    <span class="badge bg-light text-dark border">{{ manutencoes|length }}</span>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead>
+        <tr>
+          <th class="ps-3">#</th>
+          <th>Condomínio</th>
+          <th>Tipo</th>
+          <th>Prestador</th>
+          <th>Realizado em</th>
+          <th>Vencimento</th>
+          <th>Valor</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for m in manutencoes %}
+      {% set diff = none %}
+      <tr {% if m.data_vencimento and m.data_vencimento < hoje %}class="table-danger"{% endif %}>
+        <td class="ps-3 text-muted small">{{ m.id }}</td>
+        <td class="small">{{ (m.condominios or {}).get('nome', '—') }}</td>
+        <td><strong>{{ m.tipo }}</strong></td>
+        <td class="text-muted small">{{ m.prestador or '—' }}</td>
+        <td class="text-muted small">{{ m.data_realizacao or '—' }}</td>
+        <td class="small fw-semibold {% if m.data_vencimento and m.data_vencimento < hoje %}text-danger{% endif %}">
+          {{ m.data_vencimento or '—' }}
+        </td>
+        <td class="text-muted small">{% if m.valor %}R$ {{ "%.2f"|format(m.valor)|replace(".", ",") }}{% else %}—{% endif %}</td>
+        <td>
+          {% if not m.data_vencimento %}
+            <span class="badge bg-secondary">—</span>
+          {% elif m.data_vencimento < hoje %}
+            <span class="badge bg-danger">Vencida</span>
+          {% else %}
+            <span class="badge bg-success">OK</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="8" class="text-center text-muted py-4">Nenhuma manutenção encontrada.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% endblock %}

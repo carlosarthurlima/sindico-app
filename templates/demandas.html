@@ -1,0 +1,306 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+  <div>
+    <h2 class="page-title mb-0"><i class="bi bi-kanban me-2 text-primary"></i>Demandas</h2>
+    <small class="text-muted">{{ colunas.novo|length + colunas.em_cotacao|length + colunas.aprovado|length + colunas.em_execucao|length }} abertas</small>
+  </div>
+  <div class="d-flex gap-2 align-items-center flex-wrap">
+    <form method="get" action="/demandas" class="d-flex gap-2">
+      <select name="cond_id" class="form-select form-select-sm" style="min-width:190px" onchange="this.form.submit()">
+        <option value="">Todos os condomínios</option>
+        {% for c in condominios %}
+        <option value="{{ c.id }}" {% if c.id == cond_id_filtro %}selected{% endif %}>{{ c.nome }}</option>
+        {% endfor %}
+      </select>
+    </form>
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalNova">
+      <i class="bi bi-plus-lg me-1"></i>Nova Demanda
+    </button>
+  </div>
+</div>
+
+{# ── Kanban Board ─────────────────────────────────────────────────────────── #}
+<div class="kanban-board d-flex gap-3 overflow-auto pb-3">
+
+{% for status_key, status_label, status_color in status_kanban %}
+<div class="kanban-col flex-shrink-0" style="width:280px">
+  {# Column header #}
+  <div class="d-flex align-items-center justify-content-between mb-2 px-1">
+    <div class="d-flex align-items-center gap-2">
+      <span class="badge bg-{{ status_color }}">{{ colunas[status_key]|length }}</span>
+      <strong class="small text-uppercase text-muted" style="letter-spacing:.5px">{{ status_label }}</strong>
+    </div>
+    <button class="btn btn-sm btn-link text-muted p-0"
+      data-bs-toggle="modal" data-bs-target="#modalNova"
+      data-status="{{ status_key }}"
+      title="Adicionar nesta coluna">
+      <i class="bi bi-plus-circle"></i>
+    </button>
+  </div>
+
+  {# Cards container #}
+  <div class="kanban-cards d-flex flex-column gap-2 p-2 rounded"
+    id="col-{{ status_key }}"
+    data-status="{{ status_key }}"
+    style="min-height:200px; background:rgba(0,0,0,.04)">
+
+    {% for d in colunas[status_key] %}
+    {% set cond_nome = d.condominios.nome if d.condominios else '—' %}
+    <div class="card kanban-card p-3" data-id="{{ d.id }}" draggable="true"
+      style="cursor:grab; border-left:3px solid
+        {% if d.data_limite and d.data_limite < hoje %}#ef4444
+        {% elif d.data_limite %}#f59e0b
+        {% else %}#e5e7eb{% endif %}">
+
+      <div class="d-flex justify-content-between align-items-start mb-1">
+        <span class="badge bg-light text-dark border" style="font-size:.7rem">{{ d.categoria.capitalize() }}</span>
+        <div class="dropdown">
+          <button class="btn btn-link p-0 text-muted" data-bs-toggle="dropdown">
+            <i class="bi bi-three-dots-vertical" style="font-size:.8rem"></i>
+          </button>
+          <ul class="dropdown-menu dropdown-menu-end shadow-sm" style="font-size:.85rem">
+            <li><a class="dropdown-item"
+              data-bs-toggle="modal" data-bs-target="#modalEditar"
+              data-id="{{ d.id }}"
+              data-cond="{{ d.condominio_id }}"
+              data-titulo="{{ d.titulo }}"
+              data-descricao="{{ d.descricao or '' }}"
+              data-categoria="{{ d.categoria }}"
+              data-prestador="{{ d.prestador or '' }}"
+              data-valor="{{ d.valor or '' }}"
+              data-limite="{{ d.data_limite or '' }}"
+              data-status="{{ d.status }}"
+              href="#">
+              <i class="bi bi-pencil me-2"></i>Editar
+            </a></li>
+            <li><hr class="dropdown-divider"></li>
+            <li>
+              <form method="post" action="/demandas/{{ d.id }}/excluir"
+                onsubmit="return confirm('Excluir demanda #{{ d.id }}?')">
+                <button class="dropdown-item text-danger">
+                  <i class="bi bi-trash me-2"></i>Excluir
+                </button>
+              </form>
+            </li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="fw-semibold" style="font-size:.9rem; line-height:1.3">{{ d.titulo }}</div>
+      {% if d.descricao %}
+      <div class="text-muted mt-1" style="font-size:.78rem; line-height:1.4">{{ d.descricao[:80] }}{% if d.descricao|length > 80 %}…{% endif %}</div>
+      {% endif %}
+
+      <div class="d-flex justify-content-between align-items-center mt-2 pt-2"
+        style="border-top:1px solid #f0f0f0">
+        <span class="text-muted" style="font-size:.72rem">
+          <i class="bi bi-building me-1"></i>{{ cond_nome[:22] }}
+        </span>
+        {% if d.data_limite %}
+        <span class="badge {% if d.data_limite < hoje %}bg-danger{% else %}bg-warning text-dark{% endif %}"
+          style="font-size:.68rem">
+          <i class="bi bi-calendar-event me-1"></i>{{ d.data_limite }}
+        </span>
+        {% endif %}
+      </div>
+      {% if d.prestador %}
+      <div class="text-muted mt-1" style="font-size:.72rem">
+        <i class="bi bi-person me-1"></i>{{ d.prestador }}
+      </div>
+      {% endif %}
+    </div>
+    {% endfor %}
+
+  </div>{# /kanban-cards #}
+</div>{# /kanban-col #}
+{% endfor %}
+
+{# Concluídas (collapsed) #}
+<div class="kanban-col flex-shrink-0" style="width:280px">
+  <div class="d-flex align-items-center gap-2 mb-2 px-1">
+    <span class="badge bg-success">{{ colunas.concluido|length }}</span>
+    <strong class="small text-uppercase text-muted" style="letter-spacing:.5px">Concluídas</strong>
+  </div>
+  <div class="d-flex flex-column gap-2 p-2 rounded"
+    id="col-concluido" data-status="concluido"
+    style="min-height:200px; background:rgba(0,0,0,.04)">
+    {% for d in colunas.concluido %}
+    {% set cond_nome = d.condominios.nome if d.condominios else '—' %}
+    <div class="card kanban-card p-2 opacity-75" data-id="{{ d.id }}" draggable="true"
+      style="cursor:grab; border-left:3px solid #10b981">
+      <div class="fw-semibold" style="font-size:.85rem">{{ d.titulo }}</div>
+      <div class="text-muted" style="font-size:.72rem"><i class="bi bi-building me-1"></i>{{ cond_nome[:22] }}</div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+</div>{# /kanban-board #}
+
+{# ── Modal Nova Demanda ────────────────────────────────────────────────────── #}
+<div class="modal fade" id="modalNova" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header border-0">
+        <h5 class="modal-title fw-bold"><i class="bi bi-plus-circle me-2 text-primary"></i>Nova Demanda</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="post" action="/demandas/nova">
+        <div class="modal-body">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Condomínio <span class="text-danger">*</span></label>
+              <select name="condominio_id" id="nCondId" class="form-select" required>
+                <option value="">Selecione...</option>
+                {% for c in condominios %}
+                <option value="{{ c.id }}">{{ c.nome }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Categoria</label>
+              <select name="categoria" class="form-select">
+                {% for cat in categorias %}<option value="{{ cat }}">{{ cat.capitalize() }}</option>{% endfor %}
+              </select>
+            </div>
+            <div class="col-12">
+              <label class="form-label fw-semibold">Título <span class="text-danger">*</span></label>
+              <input type="text" name="titulo" class="form-control" placeholder="Ex: Trocar lâmpada da garagem" required>
+            </div>
+            <div class="col-12">
+              <label class="form-label fw-semibold">Descrição</label>
+              <textarea name="descricao" class="form-control" rows="2" placeholder="Detalhes adicionais..."></textarea>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Prestador</label>
+              <input type="text" name="prestador" class="form-control" placeholder="Nome do prestador">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Valor estimado</label>
+              <input type="number" name="valor" class="form-control" placeholder="0,00" step="0.01" min="0">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Prazo / Data limite</label>
+              <input type="date" name="data_limite" class="form-control">
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer border-0">
+          <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-primary px-4"><i class="bi bi-plus-lg me-1"></i>Criar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{# ── Modal Editar Demanda ──────────────────────────────────────────────────── #}
+<div class="modal fade" id="modalEditar" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header border-0">
+        <h5 class="modal-title fw-bold"><i class="bi bi-pencil me-2 text-warning"></i>Editar Demanda</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="post" id="formEditar" action="">
+        <div class="modal-body">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Condomínio</label>
+              <select name="condominio_id" id="eCond" class="form-select" required>
+                {% for c in condominios %}<option value="{{ c.id }}">{{ c.nome }}</option>{% endfor %}
+              </select>
+            </div>
+            <div class="col-md-3">
+              <label class="form-label fw-semibold">Categoria</label>
+              <select name="categoria" id="eCat" class="form-select">
+                {% for cat in categorias %}<option value="{{ cat }}">{{ cat.capitalize() }}</option>{% endfor %}
+              </select>
+            </div>
+            <div class="col-md-3">
+              <label class="form-label fw-semibold">Status</label>
+              <select name="status" id="eStatus" class="form-select">
+                {% for sk, sl, _ in status_kanban %}<option value="{{ sk }}">{{ sl }}</option>{% endfor %}
+                <option value="cancelado">Cancelado</option>
+              </select>
+            </div>
+            <div class="col-12">
+              <label class="form-label fw-semibold">Título</label>
+              <input type="text" name="titulo" id="eTitulo" class="form-control" required>
+            </div>
+            <div class="col-12">
+              <label class="form-label fw-semibold">Descrição</label>
+              <textarea name="descricao" id="eDesc" class="form-control" rows="2"></textarea>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Prestador</label>
+              <input type="text" name="prestador" id="ePrestador" class="form-control">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Valor</label>
+              <input type="number" name="valor" id="eValor" class="form-control" step="0.01" min="0">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Prazo</label>
+              <input type="date" name="data_limite" id="eLimite" class="form-control">
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer border-0">
+          <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-warning px-4"><i class="bi bi-save me-1"></i>Salvar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+<script>
+// ── Kanban drag-and-drop ────────────────────────────────────────────────────
+document.querySelectorAll('.kanban-cards').forEach(col => {
+  Sortable.create(col, {
+    group: 'kanban',
+    animation: 150,
+    ghostClass: 'opacity-50',
+    onEnd: async (evt) => {
+      const cardId  = evt.item.dataset.id;
+      const newStatus = evt.to.dataset.status;
+      if (!cardId || !newStatus) return;
+      try {
+        await fetch(`/api/demandas/${cardId}/status`, {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({status: newStatus}),
+        });
+      } catch(e) { console.error('Erro ao atualizar status:', e); }
+    }
+  });
+});
+
+// ── Modal editar ────────────────────────────────────────────────────────────
+document.getElementById('modalEditar').addEventListener('show.bs.modal', e => {
+  const b = e.relatedTarget;
+  document.getElementById('formEditar').action  = `/demandas/${b.dataset.id}/editar`;
+  document.getElementById('eCond').value        = b.dataset.cond;
+  document.getElementById('eTitulo').value      = b.dataset.titulo;
+  document.getElementById('eDesc').value        = b.dataset.descricao;
+  document.getElementById('eCat').value         = b.dataset.categoria;
+  document.getElementById('ePrestador').value   = b.dataset.prestador;
+  document.getElementById('eValor').value       = b.dataset.valor;
+  document.getElementById('eLimite').value      = b.dataset.limite;
+  document.getElementById('eStatus').value      = b.dataset.status;
+});
+
+// ── Modal nova: pré-selecionar coluna ───────────────────────────────────────
+document.getElementById('modalNova').addEventListener('show.bs.modal', e => {
+  const status = e.relatedTarget?.dataset?.status;
+  // Could pre-select status if needed
+});
+</script>
+{% endblock %}
