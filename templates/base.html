@@ -146,12 +146,28 @@
     <a href="/relatorio"   class="{% if aba=='relatorio'   %}active{% endif %}">
       <i class="bi bi-file-earmark-bar-graph"></i><span>Relatório</span>
     </a>
+    {% if not setup_ok %}
+    <a href="/setup" class="{% if aba=='setup' %}active{% endif %}" style="color:#ffc107!important;">
+      <i class="bi bi-exclamation-triangle-fill"></i><span>Setup</span>
+    </a>
+    {% endif %}
   </nav>
 
   <div class="sidebar-footer">Síndico App v1.0</div>
 </div>
 
 <div class="main-content">
+  {% if not setup_ok and aba != 'setup' %}
+  <div class="alert alert-warning d-flex align-items-center mb-4" role="alert">
+    <i class="bi bi-exclamation-triangle-fill me-2 fs-5"></i>
+    <div>
+      <strong>Banco de dados não configurado.</strong>
+      As tabelas ainda não foram criadas no Supabase.
+      <a href="/setup" class="alert-link ms-2">Clique aqui para configurar &rarr;</a>
+    </div>
+  </div>
+  {% endif %}
+
   {% if msg %}
   <div class="alert alert-success alert-dismissible fade show alert-toast" role="alert">
     <i class="bi bi-check-circle me-2"></i>{{ msg }}

@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h1 class="page-title"><i class="bi bi-database-fill-gear me-2"></i>Configuração do Banco de Dados</h1>
+</div>
+
+{% if setup_ok %}
+<div class="alert alert-success d-flex align-items-center" role="alert">
+  <i class="bi bi-check-circle-fill me-3 fs-4"></i>
+  <div>
+    <strong>Banco de dados configurado!</strong> Todas as tabelas foram encontradas.
+    <a href="/condominios" class="alert-link ms-2">Ir para Condomínios &rarr;</a>
+  </div>
+</div>
+{% else %}
+<div class="alert alert-warning d-flex align-items-center mb-4" role="alert">
+  <i class="bi bi-exclamation-triangle-fill me-3 fs-4"></i>
+  <div>
+    <strong>Tabelas não encontradas.</strong> Execute o SQL abaixo no Supabase para criar as tabelas e pré-popular os 12 condomínios.
+  </div>
+</div>
+
+<div class="card mb-4">
+  <div class="card-body">
+    <h5 class="card-title mb-3">
+      <i class="bi bi-1-circle-fill text-primary me-2"></i>
+      Acesse o Supabase SQL Editor
+    </h5>
+    <p class="mb-2">Abra o link abaixo em uma nova aba:</p>
+    <a href="https://supabase.com/dashboard/project/kpfiweztwsiwcbsvdvbi/sql"
+       target="_blank" class="btn btn-primary">
+      <i class="bi bi-box-arrow-up-right me-2"></i>Abrir SQL Editor no Supabase
+    </a>
+  </div>
+</div>
+
+<div class="card mb-4">
+  <div class="card-body">
+    <h5 class="card-title mb-3">
+      <i class="bi bi-2-circle-fill text-primary me-2"></i>
+      Copie e cole o SQL abaixo — depois clique em <strong>Run</strong>
+    </h5>
+    <div class="d-flex justify-content-end mb-2">
+      <button class="btn btn-sm btn-outline-secondary" onclick="copiarSQL()">
+        <i class="bi bi-clipboard me-1"></i>Copiar SQL
+      </button>
+    </div>
+    <pre id="sqlBlock" class="bg-dark text-light p-3 rounded" style="font-size:.8rem;max-height:400px;overflow-y:auto;">{{ sql }}</pre>
+  </div>
+</div>
+
+<div class="card mb-4">
+  <div class="card-body">
+    <h5 class="card-title mb-3">
+      <i class="bi bi-3-circle-fill text-primary me-2"></i>
+      Após executar, clique em verificar
+    </h5>
+    <a href="/setup" class="btn btn-success">
+      <i class="bi bi-arrow-clockwise me-2"></i>Verificar configuração
+    </a>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+function copiarSQL() {
+  const text = document.getElementById('sqlBlock').innerText;
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = event.target.closest('button');
+    btn.innerHTML = '<i class="bi bi-check me-1"></i>Copiado!';
+    btn.classList.replace('btn-outline-secondary', 'btn-success');
+    setTimeout(() => {
+      btn.innerHTML = '<i class="bi bi-clipboard me-1"></i>Copiar SQL';
+      btn.classList.replace('btn-success', 'btn-outline-secondary');
+    }, 2000);
+  });
+}
+</script>
+{% endblock %}

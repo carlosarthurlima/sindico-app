@@ -39,18 +39,32 @@ def get_db() -> Client:
     return _client
 
 
+def _safe(fn, fallback=None):
+    """Executa fn() retornando fallback se a tabela não existir ainda."""
+    if fallback is None:
+        fallback = []
+    try:
+        return fn()
+    except Exception:
+        return fallback
+
+
 # ─── Condomínios ──────────────────────────────────────────────────────────────
 
 def listar_condominios(only_active=True):
-    db = get_db()
-    q = db.table("condominios").select("*").order("nome")
-    if only_active:
-        q = q.eq("ativo", True)
-    return q.execute().data
+    def _q():
+        q = get_db().table("condominios").select("*").order("nome")
+        if only_active:
+            q = q.eq("ativo", True)
+        return q.execute().data
+    return _safe(_q)
 
 
 def get_condominio(cond_id: str):
-    return get_db().table("condominios").select("*").eq("id", cond_id).single().execute().data
+    return _safe(
+        lambda: get_db().table("condominios").select("*").eq("id", cond_id).single().execute().data,
+        fallback=None,
+    )
 
 
 def criar_condominio(nome, endereco="", responsavel="", telefone=""):
@@ -71,19 +85,23 @@ def desativar_condominio(cond_id):
 # ─── Demandas ─────────────────────────────────────────────────────────────────
 
 def listar_demandas(condominio_id=None, status=None, only_open=False):
-    db = get_db()
-    q = db.table("demandas").select("*, condominios(nome)").order("criado_em", desc=True)
-    if condominio_id:
-        q = q.eq("condominio_id", condominio_id)
-    if status:
-        q = q.eq("status", status)
-    if only_open:
-        q = q.in_("status", STATUS_ABERTOS)
-    return q.execute().data
+    def _q():
+        q = get_db().table("demandas").select("*, condominios(nome)").order("criado_em", desc=True)
+        if condominio_id:
+            q = q.eq("condominio_id", condominio_id)
+        if status:
+            q = q.eq("status", status)
+        if only_open:
+            q = q.in_("status", STATUS_ABERTOS)
+        return q.execute().data
+    return _safe(_q)
 
 
 def get_demanda(dem_id: int):
-    return get_db().table("demandas").select("*, condominios(nome)").eq("id", dem_id).single().execute().data
+    return _safe(
+        lambda: get_db().table("demandas").select("*, condominios(nome)").eq("id", dem_id).single().execute().data,
+        fallback=None,
+    )
 
 
 def criar_demanda(condominio_id, titulo, descricao="", categoria="outros",
@@ -113,19 +131,16 @@ def excluir_demanda(dem_id: int):
 
 
 def demandas_vencendo(dias=DIAS_ALERTA_DEMANDA):
-    """Demandas abertas com data_limite <= hoje + dias dias."""
-    db = get_db()
-    hoje = date.today().isoformat()
-    limite = date.today().replace(
-        day=min(date.today().day + dias, 28)
-    ).isoformat()
-    # Use range filter: data_limite between hoje and hoje+dias
-    rows = db.table("demandas").select("*, condominios(nome)") \
-        .in_("status", STATUS_ABERTOS) \
-        .not_.is_("data_limite", "null") \
-        .lte("data_limite", limite) \
-        .execute().data
-    return rows
+    def _q():
+        limite = date.today().replace(
+            day=min(date.today().day + dias, 28)
+        ).isoformat()
+        return get_db().table("demandas").select("*, condominios(nome)") \
+            .in_("status", STATUS_ABERTOS) \
+            .not_.is_("data_limite", "null") \
+            .lte("data_limite", limite) \
+            .execute().data
+    return _safe(_q)
 
 
 def marcar_alerta_demanda(dem_id: int):
@@ -137,15 +152,19 @@ def marcar_alerta_demanda(dem_id: int):
 # ─── Manutenções ──────────────────────────────────────────────────────────────
 
 def listar_manutencoes(condominio_id=None):
-    db = get_db()
-    q = db.table("manutencoes").select("*, condominios(nome)").order("data_vencimento")
-    if condominio_id:
-        q = q.eq("condominio_id", condominio_id)
-    return q.execute().data
+    def _q():
+        q = get_db().table("manutencoes").select("*, condominios(nome)").order("data_vencimento")
+        if condominio_id:
+            q = q.eq("condominio_id", condominio_id)
+        return q.execute().data
+    return _safe(_q)
 
 
 def get_manutencao(manut_id: int):
-    return get_db().table("manutencoes").select("*, condominios(nome)").eq("id", manut_id).single().execute().data
+    return _safe(
+        lambda: get_db().table("manutencoes").select("*, condominios(nome)").eq("id", manut_id).single().execute().data,
+        fallback=None,
+    )
 
 
 def criar_manutencao(condominio_id, tipo, data_vencimento, descricao="",
@@ -167,23 +186,34 @@ def excluir_manutencao(manut_id: int):
 
 
 def manutencoes_vencendo(dias=DIAS_ALERTA_MANUTENCAO):
-    """Manutenções com data_vencimento <= hoje + dias dias."""
-    import calendar
-    hoje = date.today()
-    mes = hoje.month + (dias // 30)
-    ano = hoje.year + (mes - 1) // 12
-    mes = (mes - 1) % 12 + 1
-    limite = hoje.replace(
-        year=ano, month=mes,
-        day=min(hoje.day, calendar.monthrange(ano, mes)[1])
-    ).isoformat()
-    rows = get_db().table("manutencoes").select("*, condominios(nome)") \
-        .lte("data_vencimento", limite) \
-        .execute().data
-    return rows
+    def _q():
+        import calendar
+        hoje = date.today()
+        mes = hoje.month + (dias // 30)
+        ano = hoje.year + (mes - 1) // 12
+        mes = (mes - 1) % 12 + 1
+        limite = hoje.replace(
+            year=ano, month=mes,
+            day=min(hoje.day, calendar.monthrange(ano, mes)[1])
+        ).isoformat()
+        return get_db().table("manutencoes").select("*, condominios(nome)") \
+            .lte("data_vencimento", limite) \
+            .execute().data
+    return _safe(_q)
 
 
 def marcar_alerta_manutencao(manut_id: int):
     get_db().table("manutencoes").update({
         "alerta_enviado_em": datetime.now().isoformat()
     }).eq("id", manut_id).execute()
+
+
+# ─── Verificação de setup ────────────────────────────────────────────────────
+
+def tabelas_existem() -> bool:
+    """Retorna True se as tabelas principais já foram criadas no Supabase."""
+    try:
+        get_db().table("condominios").select("id").limit(1).execute()
+        return True
+    except Exception:
+        return False
